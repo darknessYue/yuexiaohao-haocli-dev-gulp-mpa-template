@@ -1,6 +1,6 @@
 {
-  "name": "hao-cli-dev-gulp-mpa-template",
-  "version": "1.0.1",
+  "name": "<%= className %>",
+  "version": "<%= version %>",
   "description": "",
   "main": "index.js",
   "scripts": {},
