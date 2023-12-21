@@ -1,6 +1,6 @@
 {
-  "name": "gulp-mpa",
-  "version": "1.0.0",
+  "name": "<%= className %>",
+  "version": "<%= version %>",
   "main": "index.js",
   "license": "MIT",
   "scripts": {
