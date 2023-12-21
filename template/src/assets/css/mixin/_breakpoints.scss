@@ -1,0 +1,5 @@
+$baseFontSize: 16;
+
+@function p2r($px) {
+  @return $px / $baseFontSize * 1rem;
+}

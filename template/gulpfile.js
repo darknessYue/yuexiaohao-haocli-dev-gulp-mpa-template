@@ -31,8 +31,10 @@ const del = require('del')
 const yargs = require('yargs')
 const Path = require('path')
 const webpack = require('webpack-stream')
-// const webpackConfig = require("./webpack.config.js")
+const webpackConfig = require("./webpack.config.js")
 const named = require('vinyl-named')
+const through2 = require('through2')
+const gulpif = require('gulp-if')
 
 const { series, parallel, src, dest, watch } = require('gulp')
 const browsersync = require('browser-sync')
@@ -43,17 +45,20 @@ let config = {
   build: {
     src: 'src',
     dist: 'dist',
+    prod: 'prod',
     temp: 'temp',
     public: 'public',
     watch: {
-      styles: 'assets/css/**/*.scss'
+      styles: 'assets/css/**/*.scss',
     },
     paths: {
       styles: 'assets/css/*.scss',
       scripts: 'assets/js/*.js',
       pages: '*.html',
+      pages1: 'en/*.html',
       images: 'assets/images/**',
-      fonts: 'assets/fonts/**'
+      fonts: 'assets/fonts/**',
+      video: 'assets/video/**'
     }
   }
 }
@@ -84,57 +89,17 @@ const {
   useref,
   imagemin,
   fileInclude,
-  autoprefixer
+  autoprefixer,
+  cleanCss
 } = plugins
 
 const watchs = require('gulp-watch')
 const scss = require('gulp-sass')(require('sass'))
 
 /*
-*  webpack配置
-*/
-const webpackConfig = {
-  mode: isProd ? 'production' : 'development',
-  devtool: isProd ? false : 'eval-cheap-module-source-map',
-  module: {
-    rules: [
-      {
-        test: /\.js$/,
-        exclude: /(node_modules|bower_components)/,
-        use: {
-          loader: 'babel-loader',
-          options: {
-            plugins: [
-              // '@babel/plugin-proposal-object-rest-spread',
-              [
-                '@babel/plugin-transform-runtime',
-                {
-                  absoluteRuntime: false,
-                  corejs: 3,
-                  helpers: true,
-                  regenerator: true,
-                  useESModules: false
-                }
-              ]
-            ],
-            presets: ['@babel/preset-env']
-            // cacheDirectory: true,
-          }
-        }
-      }
-    ]
-  },
-  resolve: {
-    alias: {
-
-    }
-  }
-}
-
-/*
 *  错误提示配置
 */
-function report (origin = 'script', detail) {
+function report(origin = 'script', detail) {
   util.log(`[${origin}]`, detail.toString({
     modules: false,
     errorDetails: false,
@@ -152,6 +117,7 @@ const style = () => {
     .pipe(scss({ outputStyle: 'expanded' }))
     .pipe(autoprefixer())
   // .pipe(rename({extname: '.min.css'}))
+    .pipe(gulpif(isProd, cleanCss()))
     .pipe(dest(isProd ? config.build.dist : config.build.temp))
     .pipe(bs.reload({ stream: true }))
 }
@@ -161,6 +127,16 @@ const style = () => {
 */
 const scripts = () => {
   return src(config.build.paths.scripts, { base: config.build.src, cwd: config.build.src })
+    // .pipe(babel({
+    //   plugins: [['@babel/plugin-transform-runtime', {
+    //     absoluteRuntime: false,
+    //     corejs: 3,
+    //     helpers: true,
+    //     regenerator: true,
+    //     useESModules: false
+    //   }]],
+    //   presets: ['@babel/preset-env'] // 往上级查找
+    // }))
     .pipe(named(function (file) {
       return file.relative.slice(0, -Path.extname(file.path).length)
     }))
@@ -173,13 +149,39 @@ const scripts = () => {
 * 页面文件迁移
 */
 const page = () => {
-  return src(config.build.paths.pages, { base: config.build.src, cwd: config.build.src })
+  return src([config.build.paths.pages, config.build.paths.pages1], { base: config.build.src, cwd: config.build.src })
+    .pipe(through2.obj(function(file, _, cb) {
+      if (file.isBuffer()) {
+        if (Path.dirname(file.path).includes('en')) {
+          let code = file.contents.toString()
+          // code = code.replace(/\.\/template\/header\.html/g, './template/header-en.html')
+          // code = code.replace(/\.\/template\/footer\.html/g, './template/footer-en.html')
+          file.contents = Buffer.from(code)
+        }
+      }
+      cb(null, file)
+    }))
     .pipe(fileInclude({
       prefix: '@@',
       basepath: `./${config.build.src}/`,
       indent: true
     }).on('error', (error) => {
       report('template', error)
+    }))
+    .pipe(through2.obj(function(file, _, cb) {
+      if (file.isBuffer()) {
+        if (Path.dirname(file.path).includes('en')) {
+          let code = file.contents.toString()
+          code = code.replace(/favicon.ico/g, '../favicon.ico')
+          code = code.replace(/assets\/css/g, '../assets/css')
+          code = code.replace(/assets\/js/g, '../assets/js')
+          code = code.replace(/\.\.\/assets\/images/g, 'assets/images')
+          code = code.replace(/assets\/images/g, '../assets/images')
+          code = code.replace(/assets\/video/g, '../assets/video')
+          file.contents = Buffer.from(code)
+        }
+      }
+      cb(null, file)
     }))
     .pipe(swig({ data: config.data, defaults: { cache: false } }))
     .pipe(dest(config.build.temp))
@@ -190,7 +192,7 @@ const page = () => {
 */
 const image = () => {
   return src(config.build.paths.images, { base: config.build.src, cwd: config.build.src })
-    .pipe(imagemin())
+    // .pipe(imagemin())
     .pipe(dest(config.build.dist))
 }
 
@@ -199,7 +201,15 @@ const image = () => {
 */
 const font = () => {
   return src(config.build.paths.fonts, { base: config.build.src, cwd: config.build.src })
-    .pipe(imagemin())
+    // .pipe(imagemin())
+    .pipe(dest(config.build.dist))
+}
+
+/*
+*  视频文件迁移
+*/
+const video = () => {
+  return src(config.build.paths.video, { base: config.build.src, cwd: config.build.src })
     .pipe(dest(config.build.dist))
 }
 
@@ -222,9 +232,9 @@ const clean = () => {
 * 编译Html 修改其中的node_modules引用并打包
 */
 const userefMethod = () => {
-  return src(`${config.build.temp}/${config.build.paths.pages}`, { base: config.build.temp })
-    .pipe(useref({ searchPath: [config.build.temp, '.'] })) // '.'表示当前目录
-    .pipe(plugins.if(/\.js$/, plugins.uglify()))
+  return src([`${config.build.temp}/${config.build.paths.pages}`, `${config.build.temp}/${config.build.paths.pages1}`], { base: config.build.temp })
+    .pipe(useref({ searchPath: [config.build.temp,config.build.src, '.'] })) // '.'表示当前目录
+    // .pipe(plugins.if(/$\/node_modules+\.js$/, plugins.uglify()))
     .pipe(plugins.if(/\.css$/, plugins.cleanCss()))
     .pipe(plugins.if(/\.html$/, plugins.htmlmin({
       collapseWhitespace: true,
@@ -263,6 +273,31 @@ const serve = () => {
   })
 }
 
+
+// const useCOS = () => {
+//   return src([
+//     'dist/**/*.html',
+//     'dist/**/*.css',
+//     'dist/**/*.js'
+//   ])
+//   .pipe(through2.obj(function(file, _, cb) {
+//     console.log(file.path)
+//     if (file.isBuffer()) {
+//       let code = file.contents.toString()
+//       if (Path.dirname(file.path).includes('en')) {
+//         code = code.replace(/\.\.\/assets\//g, '')
+//         code = code.replace(/\.\.\/favicon.ico/g, '')
+//       } else {
+//         code = code.replace(/assets\//g, '')
+//         code = code.replace(/favicon.ico/g, '')
+//       }
+//       file.contents = Buffer.from(code)
+//     }
+//     cb(null, file)
+//   }))
+//   .pipe(dest(config.build.dist))
+// }
+
 /*
 * 暴露命令
 */
@@ -275,6 +310,14 @@ exports.build = series(
     series(compile, userefMethod),
     image,
     font,
+    video,
     extra
   )
 )
+// exports.cos = series(
+  // image,
+  // font,
+  // video,
+  // extra,
+  // useCOS
+// )

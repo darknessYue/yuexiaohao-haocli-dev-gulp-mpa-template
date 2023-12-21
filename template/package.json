@@ -1,32 +1,14 @@
 {
   "name": "gulp-mpa",
-  "version": "0.2.1",
-  "description": "front-End workflow build",
-  "keywords": [
-    "gulp-mpa",
-    "zce"
-  ],
-  "repository": "darkness/gulp-mpa",
+  "version": "1.0.0",
+  "main": "index.js",
   "license": "MIT",
-  "author": "rio <123@qq.com> (http://baidu.com)",
-  "main": "lib/index.js",
-  "bin": "bin/gulp-mpa.js",
-  "files": [
-    "lib",
-    "bin"
-  ],
   "scripts": {
-    "lint": "standard --fix",
-    "prepare": "npm run lint",
     "dev": "gulp dev",
-    "build": "gulp build"
+    "build": "gulp build",
+    "build:prod": "gulp cos"
   },
-  "renovate": {
-    "extends": [
-      "zce"
-    ]
-  },
-  "dependencies": {
+  "devDependencies": {
     "@babel/core": "^7.16.0",
     "@babel/plugin-proposal-object-rest-spread": "^7.16.0",
     "@babel/plugin-transform-runtime": "^7.16.0",
@@ -51,19 +33,16 @@
     "gulp-useref": "^5.0.0",
     "gulp-util": "^3.0.8",
     "gulp-watch": "^5.0.1",
-    "sass": "^1.43.4",
+    "sass": "~1.32.6",
+    "through2": "^4.0.2",
     "vinyl-named": "^1.1.0",
     "webpack": "^5.62.1",
-    "webpack-stream": "^7.0.0",
-    "yargs": "^17.2.1"
+    "webpack-stream": "^7.0.0"
   },
-  "devDependencies": {
-    "standard": "16.0.3"
-  },
-  "engines": {
-    "node": ">=12"
-  },
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org"
+  "dependencies": {
+    "bootstrap": "^5.1.3",
+    "countup.js": "^2.0.8",
+    "jquery": "^3.6.0",
+    "swiper": "6.8.3"
   }
 }
